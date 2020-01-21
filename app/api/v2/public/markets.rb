@@ -60,6 +60,11 @@ module API
                      values: { value: 1..1000, message: 'public.trade.invalid_limit' },
                      default: 100,
                      desc: 'Limit the number of returned trades. Default to 100.'
+            optional :limit_for_influx,
+                     type: { value: Integer, message: 'public.trade.non_integer_limit' },
+                     values: { value: 1..100_00, message: 'public.trade.invalid_limit' },
+                     default: 1000,
+                     desc: 'Limit the number of returned trades from influxdb. Query influxdb need to be limited to avoid quering of large quantities of data. Default to 1000.'
             optional :page,
                      type: { value: Integer, message: 'public.trade.non_integer_page' },
                      values: { value: -> (p){ p.try(:positive?) }, message: 'public.trade.non_positive_page'},
@@ -76,9 +81,7 @@ module API
                      desc: "If set, returned trades will be sorted in specific order, default to 'desc'."
           end
           get ":market/trades" do
-            Trade.order(order_param)
-                 .tap { |q| q.where!(market: params[:market]) if params[:market] }
-                 .tap { |q| present paginate(q), with: API::V2::Entities::Trade }
+            present paginate(Trade.from_influx(params)), with: API::V2::Entities::PublicTrade
           end
 
           desc 'Get depth or specified market. Both asks and bids are sorted from highest price to lowest.'

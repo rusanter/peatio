@@ -494,6 +494,13 @@ describe API::V2::Public::Markets, type: :request do
     let!(:ask_trade) { create(:trade, :btcusd, maker_order: ask, created_at: 2.days.ago) }
     let!(:bid_trade) { create(:trade, :btcusd, taker_order: bid, created_at: 1.day.ago) }
 
+
+    before do
+      Peatio::InfluxDB.delete_measurments("trades")
+      ask_trade.write_to_influx
+      bid_trade.write_to_influx
+    end
+
     it 'returns all recent trades' do
       get "/api/v2/public/markets/#{market}/trades"
 
@@ -516,7 +523,8 @@ describe API::V2::Public::Markets, type: :request do
     end
 
     it 'gets trades by page and limit' do
-      create(:trade, :btcusd, taker_order: bid, created_at: 6.hours.ago)
+      trade = create(:trade, :btcusd, taker_order: bid, created_at: 6.hours.ago)
+      trade.write_to_influx
 
       get "/api/v2/public/markets/#{market}/trades", params: { limit: 2, page: 1, order_by: 'asc'}
 

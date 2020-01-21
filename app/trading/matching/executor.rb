@@ -125,6 +125,7 @@ module Matching
         end
 
         @trade.save(validate: false)
+        @trade.write_to_influx
       end
     end
 

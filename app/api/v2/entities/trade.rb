@@ -4,39 +4,7 @@
 module API
   module V2
     module Entities
-      class Trade < Base
-        expose(
-          :id,
-          documentation: {
-            type: String,
-            desc: 'Trade ID.'
-          }
-        )
-
-        expose(
-          :price,
-          documentation: {
-            type: BigDecimal,
-            desc: 'Trade price.'
-          }
-        )
-
-        expose(
-          :amount,
-          documentation: {
-            type: BigDecimal,
-            desc: 'Trade amount.'
-          }
-        )
-
-        expose(
-          :total,
-          documentation: {
-            type: BigDecimal,
-            desc: 'Trade total (Amount * Price).'
-          }
-        )
-
+      class Trade < PublicTrade
         expose(
           :fee_currency,
           documentation: {

@@ -1,6 +1,7 @@
 # encoding: UTF-8
 # frozen_string_literal: true
 
+require 'peatio/influxdb'
 class Trade < ApplicationRecord
   # == Constants ============================================================
 
@@ -48,6 +49,20 @@ class Trade < ApplicationRecord
           data += attributes[-2..-1].map { |attr| trade.send(attr).iso8601 }
           csv << data
         end
+      end
+    end
+
+    def from_influx(params)
+      Peatio::InfluxDB.client.query("select * from trades where market='#{params['market']}' order by #{params['order_by']} limit #{params["limit_for_influx"]}") do |_name, _tags, points|
+        result = points.map do |point|
+          point["amount"] = point["amount"].to_s
+          point["price"] = point["price"].to_s
+          point["total"] = point["total"].to_s
+          point["created_at"] = point.delete("time")
+          point.except("exchange")
+          point.deep_symbolize_keys!
+        end
+        return result
       end
     end
   end
@@ -110,6 +125,28 @@ class Trade < ApplicationRecord
       record_liability_transfer!
       record_revenues!
     end
+  end
+
+  def influx_data
+    {
+      values:
+                 {
+                   id:         id,
+                   price:      price,
+                   amount:     amount,
+                   total:      total,
+                   taker_type: taker_order.side
+                 },
+      tags:
+                 {
+                   market:   market.id,
+                 },
+      timestamp: created_at.to_i
+    }
+  end
+
+  def write_to_influx
+    Peatio::InfluxDB.client.write_point(self.class.table_name, influx_data, "s")
   end
 
   private
