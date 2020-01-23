@@ -152,8 +152,32 @@ describe API::V2::Public::Markets, type: :request do
     let(:last_point)  { points.last }
     let(:first_point) { points.first }
 
-    before { KlineDB.redis.rpush('peatio:btcusd:k:1', points) }
-    after { KlineDB.redis.flushall }
+    before { write_to_influx(points) }
+    after { Peatio::InfluxDB.delete_measurments("candles_1m") }
+
+    def influx_data(point)
+      {
+        values:
+        {
+          open: point[1],
+          high: point[2],
+          low: point[3],
+          close: point[4],
+          volume: point[5],
+        },
+        tags:
+        {
+          market: 'btcusd'
+        },
+        timestamp: point[0]
+      }
+    end
+
+    def write_to_influx(points)
+      points.each do |point|
+        Peatio::InfluxDB.client(epoch: 's').write_point('candles_1m', influx_data(point), 's')
+      end
+    end
 
     def load_k_line(query = {})
       api_get '/api/v2/public/markets/btcusd/k-line?' + query.to_query
@@ -167,6 +191,7 @@ describe API::V2::Public::Markets, type: :request do
     context 'data exists' do
       it 'without time limits' do
         load_k_line
+        binding.pry
         expect(JSON.parse(response.body)).to eq points[-points_default_limit..-1]
       end
 
