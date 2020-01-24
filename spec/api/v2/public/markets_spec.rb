@@ -191,14 +191,13 @@ describe API::V2::Public::Markets, type: :request do
     context 'data exists' do
       it 'without time limits' do
         load_k_line
-        binding.pry
         expect(JSON.parse(response.body)).to eq points[-points_default_limit..-1]
       end
 
       context 'with time_from' do
         it 'smaller than first point timestamp' do
           load_k_line(time_from: first_point.first - 2 * point_period)
-          expect(response_body).to eq points[0...points_default_limit - 2]
+          expect(response_body).to eq points[0...points_default_limit]
         end
 
         it 'bigger than last point timestamp' do
@@ -230,11 +229,12 @@ describe API::V2::Public::Markets, type: :request do
         it 'bigger than last point timestamp' do
           load_k_line(time_to: last_point.first + 2 * point_period)
           # Returns (limit - 2) left points.
-          points[(-points_default_limit + 2)..-1]
+          expect(response_body).to eq points[-points_default_limit..]
         end
 
         it 'in range of first and last timestamp' do
           load_k_line(time_to: first_point.first + 1 * point_period)
+          binding.pry
           expect(response_body).to eq points[0..1]
 
           load_k_line(time_to: first_point.first + 20 * point_period)

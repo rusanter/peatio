@@ -39,7 +39,7 @@ class KLineService
       o.delete(:limit) if o[:time_from].present? && o[:time_to].present?
     end
 
-    if options[:time_from].present? && options[:time_to]
+    if options[:time_from].present? && options[:time_to].present?
       # to ns
       time_from = options[:time_from].to_i * 1_000_000_000
       time_to = options[:time_to].to_i * 1_000_000_000
@@ -51,18 +51,40 @@ class KLineService
 
         return result
       end
-    else
-      Peatio::InfluxDB.client(epoch: 's').query("select count(high) from candles_1m") do |_, _, values|
-        values.first["count"]
-      end
-      
-      binding.pry
-      Peatio::InfluxDB.client(epoch: 's').query("select * from candles_#{@period} where market='#{@market_id}' limit #{options[:limit]} offset #{options[:limit]}") do |_name, _tags, points|
+    elsif options[:time_from].present? && options[:time_to].blank?
+      time_from = options[:time_from].to_i * 1_000_000_000
+
+      Peatio::InfluxDB.client(epoch: 's').query("select * from candles_#{@period} where market='#{@market_id}' and time >= #{time_from} limit #{options[:limit]}") do |_name, _tags, points|
         result = points.map do |point|
           [point['time'], point['open'], point['high'], point['low'], point['close'], point['volume']]
         end
-        
-        binding.pry
+
+        return result
+      end
+    elsif options[:time_from].blank? && options[:time_to].present?
+      Peatio::InfluxDB.client(epoch: 's').query("select count(high) from candles_1m") do |_, _, values|
+        options['total'] = values.first['count']
+      end
+      time_to = options[:time_to].to_i * 1_000_000_000
+
+      binding.pry
+      Peatio::InfluxDB.client(epoch: 's').query("select * from candles_#{@period} where market='#{@market_id}' and time <=  #{time_to} limit #{options[:limit]} offset #{options['total'] - options[:limit]}") do |_name, _tags, points|
+        result = points.map do |point|
+          [point['time'], point['open'], point['high'], point['low'], point['close'], point['volume']]
+        end
+
+        return result
+      end
+    else
+      Peatio::InfluxDB.client(epoch: 's').query("select count(high) from candles_1m") do |_, _, values|
+        options['total'] = values.first['count']
+      end
+
+      Peatio::InfluxDB.client(epoch: 's').query("select * from candles_#{@period} where market='#{@market_id}' limit #{options[:limit]} offset #{options['total'] - options[:limit]}") do |_name, _tags, points|
+        result = points.map do |point|
+          [point['time'], point['open'], point['high'], point['low'], point['close'], point['volume']]
+        end
+
         return result
       end
     end
